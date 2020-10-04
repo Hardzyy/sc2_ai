@@ -11,7 +11,11 @@ class myBot(sc2.BotAI):
 		await self.buid_pylon()
 
 	async def buid_pylon(self):
-		for 
+		if self.supply_left < 5 and not self.already_pending(PYLON):
+			nexuses = self.units(NEXUS).ready()
+			if nexuses.exists:
+				if self.can_afford(PYLON)
+					await self.build(PYLON, near=nexuses.first)
 
 	async def buid_workers(self):
 		for nexus in self.units(NEXUS).ready.noqueue:
