@@ -1,7 +1,8 @@
 import sc2
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
-from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR
+from sc2.constants import NEXUS, PROBE, PYLON, \
+ASSIMILATOR, GATEWAY, CYBERNETICSCORE, STALKER
 
 
 class myBot(sc2.BotAI):
@@ -11,6 +12,25 @@ class myBot(sc2.BotAI):
 		await self.buid_pylon()
 		await self.build_assimilator()
 		await self.expand()
+		await self.offensive_force_buildings()
+		await self.build_offensive_force()
+
+	async def offensive_force_buildings(self):
+		if self.units(PYLON).ready.exists:
+			pylon = self.units(PYLON).ready.random
+			if self.units(GATEWAY).ready.exists:
+				if not self.units(CYBERNETICSCORE):
+					if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
+						await self.build(CYBERNETICSCORE, near=pylon)
+			else:
+				if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
+					await self.build(GATEWAY, near=pylon)
+
+	async def build_offensive_force(self):
+		for gw in self.units(GATEWAY).ready.noqueue:
+			if self.can_afford(STALKER) and self.supply_left > 0:
+				await self.do(gw.train(STALKER))
+
 
 	async def expand(self):
 		if self.units(NEXUS).amount < 3 and self.can_afford(NEXUS):
