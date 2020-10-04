@@ -1,7 +1,7 @@
 import sc2
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
-from sc2.constants import NEXUS, PROBE, PYLON
+from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR
 
 
 class myBot(sc2.BotAI):
@@ -9,12 +9,30 @@ class myBot(sc2.BotAI):
 		await self.distribute_workers()
 		await self.buid_workers()
 		await self.buid_pylon()
+		await self.build_assimilator()
+		await self.expand()
+
+	async def expand(self):
+		if self.units(NEXUS).amount < 3 and self.can_afford(NEXUS):
+			await self.expand_now()
+
+	async def build_assimilator(self):
+		for nexus in self.units(NEXUS).ready:
+			vaspenes = self.state.vespene_geyser.closer_than(10.0, nexus)
+			for vaspene in vaspenes:
+				if not self.can_afford(ASSIMILATOR):
+					break
+				worker = self.select_build_worker(vaspene.position)
+				if worker is None:
+					break
+				if not self.units(ASSIMILATOR).closer_than(1.0, vaspene).exists:
+					await self.do(worker.build(ASSIMILATOR, vaspene))
 
 	async def buid_pylon(self):
 		if self.supply_left < 5 and not self.already_pending(PYLON):
 			nexuses = self.units(NEXUS).ready()
 			if nexuses.exists:
-				if self.can_afford(PYLON)
+				if self.can_afford(PYLON):
 					await self.build(PYLON, near=nexuses.first)
 
 	async def buid_workers(self):
@@ -27,4 +45,4 @@ class myBot(sc2.BotAI):
 run_game(maps.get('AbyssalReefLE'), [
 	Bot(Race.Protoss, myBot()),
 	Computer(Race.Terran, Difficulty.Easy)
-	], realtime=True)
+	], realtime=False)
