@@ -6,7 +6,7 @@ CYBERNETICSCORE, STALKER, STARGATE, VOIDRAY
 import random
 
 
-class SentdeBot(sc2.BotAI):
+class myBot(sc2.BotAI):
     def __init__(self):
         self.ITERATIONS_PER_MINUTE = 165
 
@@ -104,6 +104,6 @@ class SentdeBot(sc2.BotAI):
 
 
 run_game(maps.get("AcropolisLE"), [
-    Bot(Race.Protoss, SentdeBot()),
+    Bot(Race.Protoss, myBot()),
     Computer(Race.Terran, Difficulty.Hard)
     ], realtime=False)
