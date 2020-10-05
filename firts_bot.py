@@ -7,83 +7,87 @@ ASSIMILATOR, GATEWAY, CYBERNETICSCORE, STALKER
 
 
 class myBot(sc2.BotAI):
-	async def on_step(self, iteration):
-		await self.distribute_workers()
-		await self.buid_workers()
-		await self.buid_pylon()
-		await self.build_assimilator()
-		await self.expand()
-		await self.offensive_force_buildings()
-		await self.build_offensive_force()
-		await self.attack()
+    def __init__(self):
+        self.ITERATIONS_PER_MINUTE = 165
 
-	def find_target(self, state):
-		if len(self.known_enemy_units) >0:
-			return random.choice(self.known_enemy_units)
-		elif len(self.known_enemy_structures) > 0:
-			return random.choice(self.known_enemy_structures)
-		else:
-			return self.enemy_start_locations[0]
+    async def on_step(self, iteration):
+        self.iteration = iteration
+        await self.distribute_workers()
+        await self.buid_workers()
+        await self.buid_pylon()
+        await self.build_assimilator()
+        await self.expand()
+        await self.offensive_force_buildings()
+        await self.build_offensive_force()
+        await self.attack()
 
-	async def attack(self):
-		if self.units(STALKER).amount > 15:
-			for s in self.units(STALKER).idle:
-				await self.do(s.attack(self.find_target(self.state)))
-		elif self.units(STALKER).amount > 3:
-		 	if len(self.known_enemy_units) > 0:
-			 	for s in self.units(STALKER).idle:
-			 		await self.do(s.attack(random.choice(self.known_enemy_units)))
+    def find_target(self, state):
+        if len(self.known_enemy_units) >0:
+            return random.choice(self.known_enemy_units)
+        elif len(self.known_enemy_structures) > 0:
+            return random.choice(self.known_enemy_structures)
+        else:
+            return self.enemy_start_locations[0]
 
-	async def offensive_force_buildings(self):
-		if self.units(PYLON).ready.exists:
-			pylon = self.units(PYLON).ready.random
+    async def attack(self):
+        if self.units(STALKER).amount > 15:
+            for s in self.units(STALKER).idle:
+                await self.do(s.attack(self.find_target(self.state)))
+        elif self.units(STALKER).amount > 3:
+            if len(self.known_enemy_units) > 0:
+                for s in self.units(STALKER).idle:
+                    await self.do(s.attack(random.choice(self.known_enemy_units)))
 
-			if self.units(GATEWAY).ready.exists and not self.units(CYBERNETICSCORE):
-				if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
-					await self.build(CYBERNETICSCORE, near=pylon)
+    async def offensive_force_buildings(self):
+        if self.units(PYLON).ready.exists:
+            pylon = self.units(PYLON).ready.random
 
-			elif len(self.units(GATEWAY)) < 3:
-				if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
-					await self.build(GATEWAY, near=pylon)
+            if self.units(GATEWAY).ready.exists and not self.units(CYBERNETICSCORE):
+                if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
+                    await self.build(CYBERNETICSCORE, near=pylon)
 
-	async def build_offensive_force(self):
-		for gw in self.units(GATEWAY).ready.noqueue:
-			if self.can_afford(STALKER) and self.supply_left > 0:
-				await self.do(gw.train(STALKER))
+            elif len(self.units(GATEWAY)) < 3:
+                if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
+                    await self.build(GATEWAY, near=pylon)
 
-
-	async def expand(self):
-		if self.units(NEXUS).amount < 3 and self.can_afford(NEXUS):
-			await self.expand_now()
-
-	async def build_assimilator(self):
-		for nexus in self.units(NEXUS).ready:
-			vaspenes = self.state.vespene_geyser.closer_than(15.0, nexus)
-			for vaspene in vaspenes:
-				if not self.can_afford(ASSIMILATOR):
-					break
-			if self.units(GATEWAY).ready.exists and not self.units(CYBERNETICSCORE):
-				worker = self.select_build_worker(vaspene.position)
-				if worker is None:
-					break
-				if not self.units(ASSIMILATOR).closer_than(1.0, vaspene).exists:
-					await self.do(worker.build(ASSIMILATOR, vaspene))
-
-	async def buid_pylon(self):
-		if self.supply_left < 5 and not self.already_pending(PYLON):
-			nexuses = self.units(NEXUS).ready()
-			if nexuses.exists:
-				if self.can_afford(PYLON):
-					await self.build(PYLON, near=nexuses.first)
-
-	async def buid_workers(self):
-		for nexus in self.units(NEXUS).ready.noqueue:
-			if self.can_afford(PROBE):
-				await self.do(nexus.train(PROBE))
+    async def build_offensive_force(self):
+        for gw in self.units(GATEWAY).ready.noqueue:
+            if self.can_afford(STALKER) and self.supply_left > 0:
+                await self.do(gw.train(STALKER))
 
 
+    async def expand(self):
+        if self.units(NEXUS).amount < 3 and self.can_afford(NEXUS):
+            await self.expand_now()
 
-run_game(maps.get('AbyssalReefLE'), [
-	Bot(Race.Protoss, myBot()),
-	Computer(Race.Terran, Difficulty.Easy)
-	], realtime=False)
+    async def build_assimilator(self):
+        for nexus in self.units(NEXUS).ready:
+            vaspenes = self.state.vespene_geyser.closer_than(15.0, nexus)
+            for vaspene in vaspenes:
+                if not self.can_afford(ASSIMILATOR):
+                    break
+                worker = self.select_build_worker(vaspene.position)
+                if worker is None:
+                    break
+                if not self.units(ASSIMILATOR).closer_than(1.0, vaspene).exists:
+                    await self.do(worker.build(ASSIMILATOR, vaspene))
+
+    async def buid_pylon(self):
+        if self.supply_left < 5 and not self.already_pending(PYLON):
+            nexuses = self.units(NEXUS).ready()
+            if nexuses.exists:
+                if self.can_afford(PYLON):
+                    await self.build(PYLON, near=nexuses.first)
+
+    async def buid_workers(self):
+        if (len(self.units(NEXUS)) * 16) +(len(self.units(ASSIMILATOR))*3) > len(self.units(PROBE)):
+            for nexus in self.units(NEXUS).ready.noqueue:
+                if self.can_afford(PROBE):
+                    await self.do(nexus.train(PROBE))
+
+
+
+run_game(maps.get('TritonLE'), [
+    Bot(Race.Protoss, myBot()),
+    Computer(Race.Terran, Difficulty.Medium)
+    ], realtime=False)
