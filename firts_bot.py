@@ -1,4 +1,5 @@
 import sc2
+import random
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
 from sc2.constants import NEXUS, PROBE, PYLON, \
@@ -14,15 +15,33 @@ class myBot(sc2.BotAI):
 		await self.expand()
 		await self.offensive_force_buildings()
 		await self.build_offensive_force()
+		await self.attack()
+
+	def find_target(self, state):
+		if len(self.known_enemy_units) >0:
+			return random.choice(self.known_enemy_units)
+		elif len(self.known_enemy_scructures) > 0:
+			return random.choice(self.known_enemy_scructures)
+		else:
+			return self.enemy_start_location[0]
+
+	async def attack(self):
+		if self.units(STALKER).amount > 15:
+			for s in self.units(STALKER).idle:
+				await self.do(s.attack(self.find_target(self.state)))
+
+		 elif self.units(STALKER).amount >2:
+		 	if len(self.known_enemy_units) > 0:
+			 	for s in self.units(STALKER).idle:
+			 		await self.do(s.attack(random.choise(self.known_enemy_units)))
 
 	async def offensive_force_buildings(self):
 		if self.units(PYLON).ready.exists:
 			pylon = self.units(PYLON).ready.random
-			if self.units(GATEWAY).ready.exists:
-				if not self.units(CYBERNETICSCORE):
-					if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
-						await self.build(CYBERNETICSCORE, near=pylon)
-			else:
+			if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
+				await self.build(CYBERNETICSCORE, near=pylon)
+
+			elif len(self.units(GATEWAY)) < 3:
 				if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
 					await self.build(GATEWAY, near=pylon)
 
@@ -42,6 +61,7 @@ class myBot(sc2.BotAI):
 			for vaspene in vaspenes:
 				if not self.can_afford(ASSIMILATOR):
 					break
+			if self.units(GATEWAY).ready.exists and not self.units(CYBERNETICSCORE):
 				worker = self.select_build_worker(vaspene.position)
 				if worker is None:
 					break
