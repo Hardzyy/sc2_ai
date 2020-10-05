@@ -20,26 +20,27 @@ class myBot(sc2.BotAI):
 	def find_target(self, state):
 		if len(self.known_enemy_units) >0:
 			return random.choice(self.known_enemy_units)
-		elif len(self.known_enemy_scructures) > 0:
-			return random.choice(self.known_enemy_scructures)
+		elif len(self.known_enemy_structures) > 0:
+			return random.choice(self.known_enemy_structures)
 		else:
-			return self.enemy_start_location[0]
+			return self.enemy_start_locations[0]
 
 	async def attack(self):
 		if self.units(STALKER).amount > 15:
 			for s in self.units(STALKER).idle:
 				await self.do(s.attack(self.find_target(self.state)))
-
-		 elif self.units(STALKER).amount >2:
+		elif self.units(STALKER).amount > 3:
 		 	if len(self.known_enemy_units) > 0:
 			 	for s in self.units(STALKER).idle:
-			 		await self.do(s.attack(random.choise(self.known_enemy_units)))
+			 		await self.do(s.attack(random.choice(self.known_enemy_units)))
 
 	async def offensive_force_buildings(self):
 		if self.units(PYLON).ready.exists:
 			pylon = self.units(PYLON).ready.random
-			if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
-				await self.build(CYBERNETICSCORE, near=pylon)
+
+			if self.units(GATEWAY).ready.exists and not self.units(CYBERNETICSCORE):
+				if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
+					await self.build(CYBERNETICSCORE, near=pylon)
 
 			elif len(self.units(GATEWAY)) < 3:
 				if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
@@ -57,7 +58,7 @@ class myBot(sc2.BotAI):
 
 	async def build_assimilator(self):
 		for nexus in self.units(NEXUS).ready:
-			vaspenes = self.state.vespene_geyser.closer_than(10.0, nexus)
+			vaspenes = self.state.vespene_geyser.closer_than(15.0, nexus)
 			for vaspene in vaspenes:
 				if not self.can_afford(ASSIMILATOR):
 					break
