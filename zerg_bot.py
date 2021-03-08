@@ -33,16 +33,18 @@ class ZergBot(BotAI):
         hatch: Unit = self.townhalls[0]
         target: Point2 = self.enemy_structures.not_flying.random_or(self.enemy_start_locations[0]).position
 
-        await self.create_gas()
-        await self.harvest_gas()
         await self.create_workers()
+        await self.create_overlord()
+        await self.create_gas()
+        await self.create_queen()
+        await self.create_lavra(hatch)
+        await self.create_zergling()
+
+        await self.harvest_gas()
+        await self.get_movespeed()
+
         await self.build_spawning(hatch)
         await self.push(target)
-        await self.spawn_overlord()
-        await self.get_movespeed()
-        await self.create_queen()
-        await self.create_zergling()
-        await self.create_lavra(hatch)
 
     async def create_lavra(self, hatch):
         for queen in self.units(UnitTypeId.QUEEN):
@@ -77,7 +79,7 @@ class ZergBot(BotAI):
                     worker: Unit = self.workers.closest_to(pos)
                     worker.build(UnitTypeId.SPAWNINGPOOL, pos)
 
-    async def spawn_overlord(self):
+    async def create_overlord(self):
         if (
             self.supply_left < 2
             and self.can_afford(UnitTypeId.OVERLORD)
