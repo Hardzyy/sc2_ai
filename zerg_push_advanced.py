@@ -1,13 +1,12 @@
 import subprocess
+from random import choice
 
 import sc2
 from sc2.position import Point2, Point3
 from sc2.bot_ai import BotAI
 from sc2.player import Bot, Computer
-# from sc2.ids.unit_typeid import UnitTypeId
 from sc2.unit import Unit
 from sc2.constants import *
-
 
 class ZergBot(BotAI):
     def __init__(self):
@@ -19,6 +18,7 @@ class ZergBot(BotAI):
         self.wifi_name = "system_ANAList"
         self.ITER_PER_MIN = 165
         self.hatch: Unit = 0
+        self.game_type = choice(["Fast"])
 
     async def on_step(self, iteration: int):
         # windows only!!!
@@ -32,36 +32,65 @@ class ZergBot(BotAI):
                 self.wifi_state = False
             except Exception:
                 print(Exception)
+        print(self.game_type)
+        if self.game_type == "Fast":
+            if self.hatch == 0:
+                self.hatch = self.townhalls[0]
+            target: Point2 = self.enemy_structures.not_flying.random_or(self.enemy_start_locations[0]).position
+            await self.create_workers()
+            await self.create_overlord()
+            await self.create_gas()
+            await self.create_queen()
+            await self.create_lavra()
+            await self.create_zergling()
+            # build-in function to distrib. drones
+            await self.distribute_workers()
+            # buildings and theirs upgrades
+            await self.get_movespeed()
+            await self.create_hatch()
+            await self.build_spawning()
+            # attack
+            await self.push(target, 40)
 
-        if self.hatch == 0:
-            self.hatch = self.townhalls[0]
-        target: Point2 = self.enemy_structures.not_flying.random_or(self.enemy_start_locations[0]).position
-        # создаем все козявки
-        if self.iteration % 100:
-            print(self.townhalls)
-            print(self.units(UnitTypeId.QUEEN))
-        await self.create_workers()
-        await self.create_overlord()
-        await self.create_gas()
-        await self.create_queen()
-        await self.create_lavra()
-        await self.create_zergling()
-        #
-        await self.lair()
-        await self.create_hatch()
-        await self.distribute_workers()
-        await self.get_movespeed()
+    async def get_attackspeed(self):
+        if (
+            self.already_pending_upgrade(UpgradeId.ZERGLINGATTACKSPEED) == 0
+            and self.can_afford(UpgradeId.ZERGLINGATTACKSPEED)
+        ):
+            spawn_pool: Unit = self.structures(UnitTypeId.SPAWNINGPOOL).ready
+            if spawn_pool:
+                self.research(UpgradeId.ZERGLINGATTACKSPEED)
 
-        await self.build_spawning()
-        await self.push(target)
+    async def build_pit(self):
+        if(
+            self.structures(UnitTypeId.LAIR).ready
+            and self.structures(UnitTypeId.SPAWNINGPOOL).ready
+            and not self.already_pending(UnitTypeId.INFESTATIONPIT)
+            and self.structures(UnitTypeId.INFESTATIONPIT).amount == 0
+            and self.can_afford(UnitTypeId.INFESTATIONPIT)
+        ):
+            for d in range(4, 15):
+                pos: Point2 = self.hatch.position.towards(self.game_info.map_center, d)
+                if await self.can_place_single(UnitTypeId.INFESTATIONPIT, pos):
+                    worker: Unit = self.workers.closest_to(pos)
+                    worker.build(UnitTypeId.INFESTATIONPIT, pos)
+
+    async def hive(self):
+        if (
+            self.structures(UnitTypeId.INFESTATIONPIT).ready
+            and self.townhalls(UnitTypeId.LAIR).ready
+            and self.can_afford(UnitTypeId.HIVE)
+            and self.townhalls(UnitTypeId.HIVE).amount == 0
+        ):
+            self.hatch.build(UnitTypeId.HIVE)
 
     async def lair(self):
         if (
             self.structures(UnitTypeId.SPAWNINGPOOL).ready
-            and not self.townhalls(UnitTypeId.LAIR)
+            and self.townhalls(UnitTypeId.LAIR).amount == 0
             and self.can_afford(UnitTypeId.LAIR)
         ):
-            self.townhalls[0].build(UnitTypeId.LAIR)
+            self.hatch.build(UnitTypeId.LAIR)
 
     async def create_hatch(self):
         if (
@@ -75,7 +104,6 @@ class ZergBot(BotAI):
         for queen in self.units(UnitTypeId.QUEEN):
             if queen.energy >= 25 and not self.hatch.has_buff(BuffId.QUEENSPAWNLARVATIMER):
                 queen(AbilityId.EFFECT_INJECTLARVA, self.hatch)
-
 
     async def create_zergling(self):
         if (
@@ -124,8 +152,8 @@ class ZergBot(BotAI):
             self.train(UnitTypeId.DRONE)
 
     # Give all zerglings an attack command
-    async def push(self, target):
-        if self.units(UnitTypeId.ZERGLING).amount > 14:
+    async def push(self, target, zergs_amount):
+        if self.units(UnitTypeId.ZERGLING).amount > zergs_amount:
             for zergling in self.units(UnitTypeId.ZERGLING):
                 zergling.attack(target)
 
@@ -167,5 +195,10 @@ if __name__ == '__main__':
     sc2.run_game(
         sc2.maps.get("AcropolisLE"),
         [Bot(sc2.Race.Zerg, ZergBot()), Computer(sc2.Race.Protoss, sc2.Difficulty.Hard)],
-        realtime=True,
+        realtime=False,
     )
+    # sc2.run_game(
+    #     sc2.maps.get("AcropolisLE"),
+    #     [Bot(sc2.Race.Zerg, ZergBot()), Bot(sc2.Race.Zerg, ZergBot())],
+    #     realtime=False,
+    # )
