@@ -19,6 +19,7 @@ class ZergBot(BotAI):
         self.ITER_PER_MIN = 165
         self.hatch: Unit = 0
         self.game_type = choice(["Fast"])
+        self.idle_war = []
 
     async def on_step(self, iteration: int):
         # windows only!!!
@@ -50,7 +51,10 @@ class ZergBot(BotAI):
             await self.create_hatch()
             await self.build_spawning()
             # attack
-            await self.push(target, 40)
+            await self.push2(target, 40)
+        elif self.game_type == "Slower":
+            pass
+
 
     async def get_attackspeed(self):
         if (
@@ -97,6 +101,7 @@ class ZergBot(BotAI):
            self.gas_buildings.amount
            and self.townhalls.amount * 16 + self.gas_buildings.amount * 3 >= self.units(UnitTypeId.DRONE).amount
            and self.units(UnitTypeId.QUEEN)
+            and not self.already_pending(UnitTypeId.HATCHERY)
         ):
             await self.expand_now()
 
@@ -157,6 +162,24 @@ class ZergBot(BotAI):
             for zergling in self.units(UnitTypeId.ZERGLING):
                 zergling.attack(target)
 
+    async def push2(self, target, zergs_amount):
+        if self.units(UnitTypeId.ZERGLING).amount > 0 and self.enemy_units.amount == 0:
+            for zerg in list(self.units(UnitTypeId.ZERGLING)):
+                if zerg.is_idle and zerg not in self.idle_war:
+                    self.idle_war.append(zerg)
+            if len(self.idle_war) >= zergs_amount:
+                for zerg in self.idle_war:
+                    zerg.attack(target)
+                self.idle_war = []
+            else:
+                for zerg in self.idle_war:
+                    zerg.move(self.game_info.map_center)
+        else:
+            for zerg in self.idle_war:
+                if self.enemy_units.closer_than(3, zerg.position):
+                    zerg.attack(self.enemy_units.random)
+            self.idle_war = []
+
     async def get_movespeed(self):
         if (
             self.already_pending_upgrade(UpgradeId.ZERGLINGMOVEMENTSPEED) == 0
@@ -194,7 +217,7 @@ if __name__ == '__main__':
     dis_con = subprocess.run(dis_string, capture_output=True, text=True).stdout
     sc2.run_game(
         sc2.maps.get("AcropolisLE"),
-        [Bot(sc2.Race.Zerg, ZergBot()), Computer(sc2.Race.Protoss, sc2.Difficulty.Hard)],
+        [Bot(sc2.Race.Zerg, ZergBot()), Computer(sc2.Race.Terran, sc2.Difficulty.Hard)],
         realtime=False,
     )
     # sc2.run_game(
