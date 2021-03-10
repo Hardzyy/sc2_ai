@@ -18,6 +18,7 @@ class ZergBot(BotAI):
         self.wifi_ssid = "system_ANAList"
         self.wifi_name = "system_ANAList"
         self.ITER_PER_MIN = 165
+        self.hatch: Unit = 0
 
     async def on_step(self, iteration: int):
         # windows only!!!
@@ -32,37 +33,48 @@ class ZergBot(BotAI):
             except Exception:
                 print(Exception)
 
-        hatch: Unit = self.townhalls[0]
+        if self.hatch == 0:
+            self.hatch = self.townhalls[0]
         target: Point2 = self.enemy_structures.not_flying.random_or(self.enemy_start_locations[0]).position
         # создаем все козявки
+        if self.iteration % 100:
+            print(self.townhalls)
+            print(self.units(UnitTypeId.QUEEN))
         await self.create_workers()
         await self.create_overlord()
         await self.create_gas()
         await self.create_queen()
         await self.create_lavra()
         await self.create_zergling()
-
-        await self.create_hatch()
         #
+        await self.lair()
+        await self.create_hatch()
         await self.distribute_workers()
         await self.get_movespeed()
 
         await self.build_spawning()
         await self.push(target)
 
+    async def lair(self):
+        if (
+            self.structures(UnitTypeId.SPAWNINGPOOL).ready
+            and not self.townhalls(UnitTypeId.LAIR)
+            and self.can_afford(UnitTypeId.LAIR)
+        ):
+            self.townhalls[0].build(UnitTypeId.LAIR)
+
     async def create_hatch(self):
         if (
            self.gas_buildings.amount
-           and self.townhalls.amount * 16 + self.gas_buildings.amount * 3 == self.units(UnitTypeId.DRONE).amount
+           and self.townhalls.amount * 16 + self.gas_buildings.amount * 3 >= self.units(UnitTypeId.DRONE).amount
            and self.units(UnitTypeId.QUEEN)
         ):
             await self.expand_now()
 
     async def create_lavra(self):
-        for hatch in self.townhalls:
-            for queen in self.units(UnitTypeId.QUEEN):
-                if queen.energy >= 25 and not self.townhalls[0].has_buff(BuffId.QUEENSPAWNLARVATIMER):
-                    queen(AbilityId.EFFECT_INJECTLARVA, hatch)
+        for queen in self.units(UnitTypeId.QUEEN):
+            if queen.energy >= 25 and not self.hatch.has_buff(BuffId.QUEENSPAWNLARVATIMER):
+                queen(AbilityId.EFFECT_INJECTLARVA, self.hatch)
 
 
     async def create_zergling(self):
@@ -155,5 +167,5 @@ if __name__ == '__main__':
     sc2.run_game(
         sc2.maps.get("AcropolisLE"),
         [Bot(sc2.Race.Zerg, ZergBot()), Computer(sc2.Race.Protoss, sc2.Difficulty.Hard)],
-        realtime=False,
+        realtime=True,
     )
