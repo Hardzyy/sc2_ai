@@ -18,7 +18,7 @@ class ZergBot(BotAI):
         self.wifi_name = "system_ANAList"
         self.ITER_PER_MIN = 165
         self.hatch: Unit = 0
-        self.game_type = choice(["Fast"])
+        self.game_type = choice(["Fast","Slower"])
         self.idle_war = []
 
     async def on_step(self, iteration: int):
@@ -26,6 +26,11 @@ class ZergBot(BotAI):
         # сделано чтобы отключаться от wi-fi в момент запуска
         # если не сделать, теряем время из-за ping'ов до сервера
         self.iteration = iteration
+
+        if self.iteration == 0:
+            await self.chat_send("(glhf)")
+            await self.chat_send(f"{self.game_type}")
+
         if self.wifi_state:
             try:
                 con_string = "netsh wlan connect ssid=system_ANAList name=system_ANAList"
@@ -33,11 +38,12 @@ class ZergBot(BotAI):
                 self.wifi_state = False
             except Exception:
                 print(Exception)
-        print(self.game_type)
+
+        if self.hatch == 0:
+            self.hatch = self.townhalls[0]
+        target: Point2 = self.enemy_structures.not_flying.random_or(self.enemy_start_locations[0]).position
+
         if self.game_type == "Fast":
-            if self.hatch == 0:
-                self.hatch = self.townhalls[0]
-            target: Point2 = self.enemy_structures.not_flying.random_or(self.enemy_start_locations[0]).position
             await self.create_workers()
             await self.create_overlord()
             await self.create_gas()
@@ -53,8 +59,24 @@ class ZergBot(BotAI):
             # attack
             await self.push2(target, 40)
         elif self.game_type == "Slower":
-            pass
-
+            await self.create_workers()
+            await self.create_overlord()
+            await self.create_queen()
+            await self.create_zergling()
+            await self.create_gas()
+            await self.build_spawning()
+            await self.get_movespeed()
+            await self.lair()
+            await self.create_hatch()
+            await self.build_pit()
+            await self.hive()
+            await self.get_attackspeed()
+            # build-in function to distrib. drones
+            await self.distribute_workers()
+            # buildings and theirs upgrades
+            await self.create_lavra()
+            # attack
+            await self.push3(target, 40)
 
     async def get_attackspeed(self):
         if (
@@ -168,6 +190,25 @@ class ZergBot(BotAI):
                 if zerg.is_idle and zerg not in self.idle_war:
                     self.idle_war.append(zerg)
             if len(self.idle_war) >= zergs_amount:
+                for zerg in self.idle_war:
+                    zerg.attack(target)
+                self.idle_war = []
+            else:
+                for zerg in self.idle_war:
+                    zerg.move(self.game_info.map_center)
+        else:
+            for zerg in self.idle_war:
+                if self.enemy_units.closer_than(3, zerg.position):
+                    zerg.attack(self.enemy_units.random)
+            self.idle_war = []
+
+    async def push3(self, target, zergs_amount):
+        if self.units(UnitTypeId.ZERGLING).amount > 0 and self.enemy_units.amount == 0:
+            for zerg in list(self.units(UnitTypeId.ZERGLING)):
+                if zerg.is_idle and zerg not in self.idle_war:
+                    self.idle_war.append(zerg)
+            if (len(self.idle_war) >= zergs_amount and
+                    self.already_pending_upgrade(UpgradeId.ZERGLINGATTACKSPEED)==1):
                 for zerg in self.idle_war:
                     zerg.attack(target)
                 self.idle_war = []
